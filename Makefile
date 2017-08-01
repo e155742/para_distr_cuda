@@ -2,10 +2,7 @@ CC = gcc
 CUC = nvcc
 size = 1024
 thread = 16
-COMMOMFLAGS = -O3 -DSIZE=$(size)
-ifeq ($(print), true)
-COMMOMFLAGS += -DPRINT_VALUE -lm
-endif
+COMMOMFLAGS = -O3 -lm -DSIZE=$(size)
 CFLAGS = -std=c11 -Wall -pedantic-errors $(COMMOMFLAGS)
 CUFLAGS = -arch=sm_30 -D_GNU_SOURCE -DTHREAD=$(thread) $(COMMOMFLAGS)
 print = false

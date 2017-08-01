@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
+#include <stdbool.h>
 
 #if defined(__linux__) && !defined(__NVCC__)
 #include <linux/time.h>
@@ -44,8 +46,6 @@ void init_matrix(int *matrix, int *matrix_ans) {
     }
 }
 
-#ifdef PRINT_VALUE
-
 int get_digit(int num) {
     return log10(num) + 1;
 }
@@ -60,14 +60,12 @@ void print_matrix(int* matrix, int digit) {
     printf("\n");
 }
 
-#endif
-
 #ifdef __NVCC__
 
 __global__
-void kernel(int* matrix, int* matrix_ans){
+void kernel(int* matrix, int* matrix_ans) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int j  = blockIdx.y * blockDim.y + threadIdx.y;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (i > SIZE || j > SIZE) { return; }
 
@@ -86,7 +84,7 @@ static inline void to_squaring(int *matrix, int *matrix_ans) {
     cudaMemcpy(d_matrix_ans, matrix_ans, sizeof(int) * MEM_SIZE, cudaMemcpyHostToDevice);
 
     dim3 thread = dim3(THREAD,THREAD,1);
-    dim3 block = dim3(BLOCK ,BLOCK, 1);
+    dim3 block  = dim3(BLOCK ,BLOCK, 1);
     kernel<<<block, thread>>>(d_matrix, d_matrix_ans);
     cudaThreadSynchronize();
 
@@ -123,16 +121,23 @@ double get_time() {
     return sec + nsec;
 }
 
-int main() {
-    int  mem_size   = sizeof(int) * SIZE * SIZE;
-    int* matrix     = (int*)malloc(sizeof(int) * mem_size);
-    int* matrix_ans = (int*)malloc(sizeof(int) * mem_size);
+int main(int argc, char* argv[]) {
+    bool do_print = false;
+    if (argc == 2) {
+        if (strcmp(argv[1], "-p") == 0) {
+            do_print = true;
+        }
+    }
+
+    int* matrix     = (int*)malloc(sizeof(int) * MEM_SIZE);
+    int* matrix_ans = (int*)malloc(sizeof(int) * MEM_SIZE);
 
     init_matrix(matrix, matrix_ans);
-    #ifdef PRINT_VALUE
-    printf("元の行列\n");
-    print_matrix(matrix, get_digit(MAX_VALUE));
-    #endif
+
+    if (do_print) {
+        printf("元の行列\n");
+        print_matrix(matrix, get_digit(MAX_VALUE));
+    }
 
     double begin = get_time();
 
@@ -140,10 +145,10 @@ int main() {
 
     double end = get_time();
 
-    #ifdef PRINT_VALUE
-    printf("2乗後の行列\n");
-    print_matrix(matrix_ans, (get_digit(MAX_VALUE)) * 2);
-    #endif
+    if (do_print) {
+        printf("2乗後の行列\n");
+        print_matrix(matrix_ans, (get_digit(MAX_VALUE)) * 2);
+    }
 
     free(matrix);
     free(matrix_ans);
