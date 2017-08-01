@@ -1,18 +1,29 @@
 CC = gcc
+CUC = nvcc
 size = 1024
-CFLAGS = -O3 -Wall -std=c11 -pedantic-errors -DSIZE=$(size)
-print = false
+thread = 16
+COMMOMFLAGS = -O3 -DSIZE=$(size)
 ifeq ($(print), true)
-CFLAGS += -DPRINT_VALUE -lm
+COMMOMFLAGS += -DPRINT_VALUE -lm
 endif
-SRCCPU = matrix_cpu.c
-OBJCPU = $(SRCCPU:.c=.o)
-PROG = cpu
+CFLAGS = -std=c11 -Wall -pedantic-errors $(COMMOMFLAGS)
+CUFLAGS = -arch=sm_30 -D_GNU_SOURCE -DTHREAD=$(thread) $(COMMOMFLAGS)
+print = false
+SRC = matrix.cu
+OBJ = $(SRC:.cu=.o)
+PROGCPU = cpu
+PROGCUDA = cuda
 
-all: $(SRCCPU)
-	$(CC) $(CFLAGS) -c -o $(OBJCPU) $(SRCCPU)
-	$(CC) $(CFLAGS) $(OBJCPU) -o $(PROG)
+all: clean cpu cuda
+
+cpu: clean $(SRC)
+	$(CC) $(CFLAGS) -x c -c -o $(OBJ) $(SRC)
+	$(CC) $(CFLAGS) -o $(PROGCPU) $(OBJ)
+
+cuda gpu: clean $(SRC)
+	$(CUC) $(CUFLAGS) -c -o $(OBJ) $(SRC)
+	$(CUC) $(CUFLAGS) -o $(PROGCUDA) $(OBJ)
 
 clean:
-	rm -f $(OBJCPU) $(PROG)
+	rm -f $(OBJ) $(PROGCPU) $(PROGCUDA)
 
