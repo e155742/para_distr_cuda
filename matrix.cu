@@ -10,12 +10,6 @@
 #include <time.h>
 #endif
 
-#if defined(__linux__) && !defined(__NVCC__)
-typedef __clockid_t clockid_t;
-#endif
-
-//#define PRINT_VALUE // 行列の内容を出力
-
 // SIZE * SIZE の行列を生成
 // これを変数にするとすごく遅くなる。引数で可変にしようとか思わないように。
 #ifndef SIZE
@@ -33,7 +27,9 @@ typedef __clockid_t clockid_t;
 #endif
 
 #ifndef __NVCC__
-extern int clock_getres(clockid_t clk_id, struct timespec *res);
+#ifdef __linux__
+typedef __clockid_t clockid_t;
+#endif
 extern int clock_gettime(clockid_t clk_id, struct timespec *tp);
 #endif
 
@@ -69,12 +65,12 @@ void kernel(int* matrix, int* matrix_ans) {
 
     if (i > SIZE || j > SIZE) { return; }
 
-    for(int k = 0; k < SIZE; k++){
+    for (int k = 0; k < SIZE; k++) {
         matrix_ans[i + SIZE * j] += matrix[i + SIZE * k] * matrix[k + SIZE * j];
     }
 }
 
-static inline void to_squaring(int *matrix, int *matrix_ans) {
+static inline void to_squaring(int* matrix, int* matrix_ans) {
     int* d_matrix;
     int* d_matrix_ans;
 
@@ -83,8 +79,8 @@ static inline void to_squaring(int *matrix, int *matrix_ans) {
     cudaMemcpy(d_matrix,     matrix,     sizeof(int) * MEM_SIZE, cudaMemcpyHostToDevice);
     cudaMemcpy(d_matrix_ans, matrix_ans, sizeof(int) * MEM_SIZE, cudaMemcpyHostToDevice);
 
-    dim3 thread = dim3(THREAD,THREAD,1);
-    dim3 block  = dim3(BLOCK ,BLOCK, 1);
+    dim3 thread = dim3(THREAD, THREAD, 1);
+    dim3 block  = dim3(BLOCK,  BLOCK,  1);
     kernel<<<block, thread>>>(d_matrix, d_matrix_ans);
     cudaThreadSynchronize();
 
@@ -95,7 +91,7 @@ static inline void to_squaring(int *matrix, int *matrix_ans) {
 
 #else
 
-static inline void to_squaring(int *matrix, int *matrix_ans) {
+static inline void to_squaring(int* matrix, int* matrix_ans) {
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             for (int k = 0; k < SIZE; k++) {
@@ -110,12 +106,12 @@ static inline void to_squaring(int *matrix, int *matrix_ans) {
 double get_time() {
     struct timespec time;
 
-    if(clock_gettime(CLOCK_REALTIME,&time) < 0){
-        perror("clock_gettime");
+    if (clock_gettime(CLOCK_REALTIME, &time) < 0) {
+        perror("error: clock_gettime");
         exit(1);
     }
 
-    double sec = time.tv_sec;
+    double sec  = time.tv_sec;
     double nsec = time.tv_nsec / 1000000000.0; // ナノ秒なので10億で割る
 
     return sec + nsec;
@@ -147,19 +143,19 @@ int main(int argc, char* argv[]) {
 
     if (do_print) {
         printf("2乗後の行列\n");
-        print_matrix(matrix_ans, (get_digit(MAX_VALUE)) * 2);
+        print_matrix(matrix_ans, get_digit(MAX_VALUE) * 2);
     }
 
     free(matrix);
     free(matrix_ans);
 
     #ifdef __NVCC__
-    printf("Use CUDA: THREAD=%d, BLOCK=%d\n",THREAD, BLOCK);
+    printf("Use CUDA: THREAD=%d, BLOCK=%d\n", THREAD, BLOCK);
     #else
     printf("Use CPU only\n");
     #endif
     printf("Matrix size: %d * %d\n", SIZE, SIZE);
-    printf("Processing time: %lf sec\n",end - begin);
+    printf("Processing time: %lf sec\n", end - begin);
 
     return 0;
 }

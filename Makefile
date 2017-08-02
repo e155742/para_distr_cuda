@@ -4,7 +4,7 @@ size = 1024
 thread = 16
 COMMOMFLAGS = -O3 -lm -DSIZE=$(size)
 CFLAGS = -std=c11 -Wall -pedantic-errors $(COMMOMFLAGS)
-CUFLAGS = -arch=sm_30 -D_GNU_SOURCE -DTHREAD=$(thread) $(COMMOMFLAGS)
+CUFLAGS = -arch=sm_30 -DTHREAD=$(thread) $(COMMOMFLAGS)
 print = false
 SRC = matrix.cu
 OBJ = $(SRC:.cu=.o)
