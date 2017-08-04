@@ -33,7 +33,19 @@ typedef __clockid_t clockid_t;
 extern int clock_gettime(clockid_t clk_id, struct timespec *tp);
 #endif
 
-void init_matrix(int *matrix, int *matrix_ans) {
+typedef int matrix_t;
+
+void print_matrix(matrix_t* matrix, int digit) {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            printf("%*d ", digit, matrix[i * SIZE + j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+void init_matrix(matrix_t* matrix, matrix_t* matrix_ans) {
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             matrix[i * SIZE + j] = rand() % MAX_VALUE;
@@ -45,63 +57,6 @@ void init_matrix(int *matrix, int *matrix_ans) {
 int get_digit(int num) {
     return log10(num) + 1;
 }
-
-void print_matrix(int* matrix, int digit) {
-    for (int i = 0; i < SIZE; i++) {
-        for (int j = 0; j < SIZE; j++) {
-            printf("%*d ", digit, matrix[i * SIZE + j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-}
-
-#ifdef __NVCC__
-
-__global__
-void kernel(int* matrix, int* matrix_ans) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int j = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if (i > SIZE || j > SIZE) { return; }
-
-    for (int k = 0; k < SIZE; k++) {
-        matrix_ans[i + SIZE * j] += matrix[i + SIZE * k] * matrix[k + SIZE * j];
-    }
-}
-
-static inline void to_squaring(int* matrix, int* matrix_ans) {
-    int* d_matrix;
-    int* d_matrix_ans;
-
-    cudaMalloc((void**)&d_matrix,     sizeof(int) * MEM_SIZE);
-    cudaMalloc((void**)&d_matrix_ans, sizeof(int) * MEM_SIZE);
-    cudaMemcpy(d_matrix,     matrix,     sizeof(int) * MEM_SIZE, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_matrix_ans, matrix_ans, sizeof(int) * MEM_SIZE, cudaMemcpyHostToDevice);
-
-    dim3 thread = dim3(THREAD, THREAD, 1);
-    dim3 block  = dim3(BLOCK,  BLOCK,  1);
-    kernel<<<block, thread>>>(d_matrix, d_matrix_ans);
-    cudaThreadSynchronize();
-
-    cudaMemcpy(matrix_ans, d_matrix_ans, sizeof(int) * MEM_SIZE, cudaMemcpyDeviceToHost);
-    cudaFree(d_matrix);
-    cudaFree(d_matrix_ans);
-}
-
-#else
-
-static inline void to_squaring(int* matrix, int* matrix_ans) {
-    for (int i = 0; i < SIZE; i++) {
-        for (int j = 0; j < SIZE; j++) {
-            for (int k = 0; k < SIZE; k++) {
-                matrix_ans[i * SIZE + j] += matrix[i * SIZE + k] * matrix[k * SIZE + j];
-            }
-        }
-    }
-}
-
-#endif
 
 double get_time() {
     struct timespec time;
@@ -117,6 +72,53 @@ double get_time() {
     return sec + nsec;
 }
 
+#ifdef __NVCC__
+
+__global__
+void kernel(matrix_t* matrix, matrix_t* matrix_ans) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i > SIZE || j > SIZE) { return; }
+
+    for (int k = 0; k < SIZE; k++) {
+        matrix_ans[i + SIZE * j] += matrix[i + SIZE * k] * matrix[k + SIZE * j];
+    }
+}
+
+static inline void to_squaring(matrix_t* matrix, matrix_t* matrix_ans) {
+    matrix_t* d_matrix;
+    matrix_t* d_matrix_ans;
+
+    cudaMalloc((void**)&d_matrix,     sizeof(matrix_t) * MEM_SIZE);
+    cudaMalloc((void**)&d_matrix_ans, sizeof(matrix_t) * MEM_SIZE);
+    cudaMemcpy(d_matrix,     matrix,     sizeof(matrix_t) * MEM_SIZE, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_matrix_ans, matrix_ans, sizeof(matrix_t) * MEM_SIZE, cudaMemcpyHostToDevice);
+
+    dim3 thread = dim3(THREAD, THREAD, 1);
+    dim3 block  = dim3(BLOCK,  BLOCK,  1);
+    kernel<<<block, thread>>>(d_matrix, d_matrix_ans);
+    cudaThreadSynchronize();
+
+    cudaMemcpy(matrix_ans, d_matrix_ans, sizeof(matrix_t) * MEM_SIZE, cudaMemcpyDeviceToHost);
+    cudaFree(d_matrix);
+    cudaFree(d_matrix_ans);
+}
+
+#else
+
+static inline void to_squaring(matrix_t* matrix, matrix_t* matrix_ans) {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            for (int k = 0; k < SIZE; k++) {
+                matrix_ans[i * SIZE + j] += matrix[i * SIZE + k] * matrix[k * SIZE + j];
+            }
+        }
+    }
+}
+
+#endif
+
 int main(int argc, char* argv[]) {
     bool do_print = false;
     if (argc == 2) {
@@ -125,8 +127,8 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    int* matrix     = (int*)malloc(sizeof(int) * MEM_SIZE);
-    int* matrix_ans = (int*)malloc(sizeof(int) * MEM_SIZE);
+    matrix_t* matrix     = (matrix_t*)malloc(sizeof(matrix_t) * MEM_SIZE);
+    matrix_t* matrix_ans = (matrix_t*)malloc(sizeof(matrix_t) * MEM_SIZE);
 
     init_matrix(matrix, matrix_ans);
 

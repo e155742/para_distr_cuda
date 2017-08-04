@@ -5,7 +5,6 @@ thread = 16
 COMMOMFLAGS = -O3 -lm -DSIZE=$(size)
 CFLAGS = -std=c11 -Wall -pedantic-errors $(COMMOMFLAGS)
 CUFLAGS = -arch=sm_30 -DTHREAD=$(thread) $(COMMOMFLAGS)
-print = false
 SRC = matrix.cu
 OBJ = $(SRC:.cu=.o)
 PROGCPU = cpu
